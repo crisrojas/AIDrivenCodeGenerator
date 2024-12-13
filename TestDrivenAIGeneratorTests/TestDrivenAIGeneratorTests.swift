@@ -73,13 +73,13 @@ struct TestDrivenAIGeneratorTests {
         let runner = StubRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: DummyClient(), runner: runner)
-        var expectedIterations = [Int]()
+        var iterations = [Int]()
         let result = await sut.generateCode(from: anySpecs(), iterationLimit: 3, iterationCallback: {
-            expectedIterations.append($0)
+            iterations.append($0)
         })
         
         #expect(result.compliesSpecifications)
-        #expect(expectedIterations == [1,2,3])
+        #expect(iterations == [1,2,3])
     }
     
     func anySpecs() -> String {
