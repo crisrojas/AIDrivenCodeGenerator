@@ -18,20 +18,26 @@ struct Generator {
         let compliesSpecifications: Bool
     }
     
-    enum State {
+    enum State: Equatable {
         case loading
-        case success
-        case failure
+        case success(onIteration: Int)
+        case failure(onIteration: Int)
+        
+        var currentIteration: Int {
+            switch self {
+            case .loading: return 1
+            case .success(let i): return i
+            case .failure(let i): return i
+            }
+        }
     }
     
     func generateCode(
         from specs: String,
         iterationLimit: Int = 5,
-        stateCallback: (State) -> Void,
-        iterationCallback: (Int) -> Void
+        stateCallback: (State) -> Void
     ) async -> Result {
         stateCallback(.loading)
-        iterationCallback(1)
         var generated = await client.send(specs: specs)
         var output    = runner.run(generated)
         var result: Result {
@@ -43,23 +49,26 @@ struct Generator {
         }
         
         if result.compliesSpecifications {
-            stateCallback(.success)
+            stateCallback(.success(onIteration: 1))
             return result
+        } else {
+            stateCallback(.failure(onIteration: 1))
         }
         
-        var currentIteration = 1 {
-            didSet {
-                iterationCallback(currentIteration)
-            }
+        var state = State.loading {
+            didSet { stateCallback(state) }
         }
         
-        stateCallback(.failure)
-        
-        while currentIteration <= iterationLimit {
-            currentIteration += 1
+        while state.currentIteration <= iterationLimit {
+           
             generated = await client.send(specs: specs)
             output = runner.run(generated)
-            stateCallback(result.compliesSpecifications ? .success : .failure)
+            
+            let currentIteration = state.currentIteration + 1
+            state = result.compliesSpecifications
+            ? .success(onIteration: currentIteration)
+            : .failure(onIteration: currentIteration)
+            
             if result.compliesSpecifications {
                 break
             }
@@ -85,16 +94,13 @@ struct TestDrivenAIGeneratorTests {
     @Test func test_generator_delivers_success_output() async throws {
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
         var capturedStates = [Generator.State]()
-        var capturedIterations = [Int]()
         let result = await sut.generateCode(
             from: anySpecs(),
-            stateCallback: {capturedStates.append($0)},
-            iterationCallback: {capturedIterations.append($0)}
+            stateCallback: {capturedStates.append($0)}
         )
         
         #expect(result.compliesSpecifications)
-        #expect(capturedIterations == [1])
-        #expect(capturedStates == [.loading, .success])
+        #expect(capturedStates == [.loading, .success(onIteration: 1)])
     }
     
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
@@ -102,19 +108,23 @@ struct TestDrivenAIGeneratorTests {
         let runner = StubRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: DummyClient(), runner: runner)
-        var capturedIterations = [Int]()
         var capturedStates = [Generator.State]()
         
         let result = await sut.generateCode(
             from: anySpecs(),
             iterationLimit: 3,
-            stateCallback: { capturedStates.append($0) },
-            iterationCallback: { capturedIterations.append($0) }
+            stateCallback: { capturedStates.append($0) }
         )
         
         #expect(result.compliesSpecifications)
-        #expect(capturedIterations == [1,2,3])
-        #expect(capturedStates == [.loading, .failure, .failure, .success])
+        #expect(
+            capturedStates == [
+                .loading,
+                .failure(onIteration: 1),
+                .failure(onIteration: 2),
+                .success(onIteration: 3)
+            ]
+        )
     }
     
     func anySpecs() -> String {
