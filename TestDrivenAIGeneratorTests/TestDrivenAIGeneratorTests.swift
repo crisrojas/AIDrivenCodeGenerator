@@ -71,9 +71,7 @@ struct TestDrivenAIGeneratorTests {
         }
  
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
-        let anySpecs = anySpecs()
-        
-        let result = await sut.generateCode(from: anySpecs, iterationCallback: {_ in})
+        let result = await sut.generateCode(from: anySpecs(), iterationCallback: {_ in})
         
         #expect(result.compliesSpecifications)
     }
@@ -104,10 +102,8 @@ struct TestDrivenAIGeneratorTests {
         let runner = StubRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: DummyClient(), runner: runner)
-        let anySpecs = anySpecs()
-        
         var expectedIterations = [Int]()
-        let result = await sut.generateCode(from: anySpecs, iterationLimit: 3, iterationCallback: {
+        let result = await sut.generateCode(from: anySpecs(), iterationLimit: 3, iterationCallback: {
             expectedIterations.append($0)
         })
         
