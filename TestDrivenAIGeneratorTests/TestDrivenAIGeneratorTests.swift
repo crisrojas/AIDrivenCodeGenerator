@@ -81,14 +81,18 @@ struct TestDrivenAIGeneratorTests {
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
         
         final class MockRunner: Generator.Runner {
-            let successOnIteration: Int
+            let succedingOnIteration: Int
             var currentIteration = 0
-            init(successOnIteration: Int) {
-                self.successOnIteration = successOnIteration
+            init(succedingOnIteration: Int) {
+                self.succedingOnIteration = succedingOnIteration
+            }
+            
+            private var shoudReturnSuccess: Bool {
+                succedingOnIteration == currentIteration
             }
             
             func run(_ code: String) -> String {
-               let output = successOnIteration == currentIteration
+               let output = shoudReturnSuccess
                 ? ""
                 : "failure"
                 
@@ -97,7 +101,7 @@ struct TestDrivenAIGeneratorTests {
             }
         }
         
-        let runner = MockRunner(successOnIteration: 3)
+        let runner = MockRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: MockClient(), runner: runner)
         let anySpecs = anySpecs()
