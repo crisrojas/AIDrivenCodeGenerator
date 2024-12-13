@@ -18,7 +18,20 @@ struct Generator {
         let compliesSpecifications: Bool
     }
     
-    func generateCode(from specs: String, iterationLimit: Int = 5, iterationCallback: (Int) -> Void) async -> Result {
+    enum State {
+        case loading
+        case success
+        case failure
+    }
+    
+    func generateCode(
+        from specs: String,
+        iterationLimit: Int = 5,
+        stateCallback: (State) -> Void,
+        iterationCallback: (Int) -> Void
+    ) async -> Result {
+        stateCallback(.loading)
+        iterationCallback(1)
         var generated = await client.send(specs: specs)
         var output    = runner.run(generated)
         var result: Result {
@@ -29,16 +42,19 @@ struct Generator {
             )
         }
         
-        var currentIteration = 0 {
+        var currentIteration = 1 {
             didSet {
                 iterationCallback(currentIteration)
             }
         }
         
-        while currentIteration < iterationLimit {
+        stateCallback(.failure)
+        
+        while currentIteration <= iterationLimit {
             currentIteration += 1
             generated = await client.send(specs: specs)
             output = runner.run(generated)
+            stateCallback(result.compliesSpecifications ? .success : .failure)
             if result.compliesSpecifications {
                 break
             }
@@ -63,7 +79,7 @@ struct TestDrivenAIGeneratorTests {
 
     @Test func test_generator_delivers_success_output() async throws {
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
-        let result = await sut.generateCode(from: anySpecs(), iterationCallback: {_ in})
+        let result = await sut.generateCode(from: anySpecs(), stateCallback: {_ in}, iterationCallback: {_ in})
         
         #expect(result.compliesSpecifications)
     }
@@ -73,13 +89,19 @@ struct TestDrivenAIGeneratorTests {
         let runner = StubRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: DummyClient(), runner: runner)
-        var iterations = [Int]()
-        let result = await sut.generateCode(from: anySpecs(), iterationLimit: 3, iterationCallback: {
-            iterations.append($0)
-        })
+        var capturedIterations = [Int]()
+        var capturedStates = [Generator.State]()
+        
+        let result = await sut.generateCode(
+            from: anySpecs(),
+            iterationLimit: 3,
+            stateCallback: { capturedStates.append($0) },
+            iterationCallback: { capturedIterations.append($0) }
+        )
         
         #expect(result.compliesSpecifications)
-        #expect(iterations == [1,2,3])
+        #expect(capturedIterations == [1,2,3])
+        #expect(capturedStates == [.loading, .failure, .failure, .success])
     }
     
     func anySpecs() -> String {
@@ -97,7 +119,7 @@ private extension TestDrivenAIGeneratorTests {
     
     final class StubRunner: Generator.Runner {
         let succedingOnIteration: Int
-        var currentIteration = 0
+        var currentIteration = 1
         init(succedingOnIteration: Int) {
             self.succedingOnIteration = succedingOnIteration
         }
