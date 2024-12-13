@@ -61,16 +61,16 @@ extension Generator {
 
 struct TestDrivenAIGeneratorTests {
 
-    struct MockClient: Generator.Client {
+    struct DummyClient: Generator.Client {
         func send(specs: String) async -> String {""}
     }
     
     @Test func test_generator_delivers_success_output() async throws {
-        struct MockRunner: Generator.Runner {
+        struct DummyRunner: Generator.Runner {
             func run(_ code: String) -> String {""}
         }
  
-        let sut = Generator(client: MockClient(), runner: MockRunner())
+        let sut = Generator(client: DummyClient(), runner: DummyRunner())
         let anySpecs = anySpecs()
         
         let result = await sut.generateCode(from: anySpecs, iterationCallback: {_ in})
@@ -80,7 +80,7 @@ struct TestDrivenAIGeneratorTests {
     
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
         
-        final class MockRunner: Generator.Runner {
+        final class StubRunner: Generator.Runner {
             let succedingOnIteration: Int
             var currentIteration = 0
             init(succedingOnIteration: Int) {
@@ -101,9 +101,9 @@ struct TestDrivenAIGeneratorTests {
             }
         }
         
-        let runner = MockRunner(succedingOnIteration: 3)
+        let runner = StubRunner(succedingOnIteration: 3)
         
-        let sut = Generator(client: MockClient(), runner: runner)
+        let sut = Generator(client: DummyClient(), runner: runner)
         let anySpecs = anySpecs()
         
         var expectedIterations = [Int]()
