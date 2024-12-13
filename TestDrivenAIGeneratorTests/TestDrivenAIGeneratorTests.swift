@@ -61,15 +61,7 @@ extension Generator {
 
 struct TestDrivenAIGeneratorTests {
 
-    struct DummyClient: Generator.Client {
-        func send(specs: String) async -> String {""}
-    }
-    
     @Test func test_generator_delivers_success_output() async throws {
-        struct DummyRunner: Generator.Runner {
-            func run(_ code: String) -> String {""}
-        }
- 
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
         let result = await sut.generateCode(from: anySpecs(), iterationCallback: {_ in})
         
@@ -77,28 +69,7 @@ struct TestDrivenAIGeneratorTests {
     }
     
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
-        
-        final class StubRunner: Generator.Runner {
-            let succedingOnIteration: Int
-            var currentIteration = 0
-            init(succedingOnIteration: Int) {
-                self.succedingOnIteration = succedingOnIteration
-            }
-            
-            private var shoudReturnSuccess: Bool {
-                succedingOnIteration == currentIteration
-            }
-            
-            func run(_ code: String) -> String {
-               let output = shoudReturnSuccess
-                ? ""
-                : "failure"
-                
-                currentIteration += 1
-                return output
-            }
-        }
-        
+    
         let runner = StubRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: DummyClient(), runner: runner)
@@ -120,4 +91,36 @@ struct TestDrivenAIGeneratorTests {
     """
     }
     
+}
+
+private extension TestDrivenAIGeneratorTests {
+    
+    final class StubRunner: Generator.Runner {
+        let succedingOnIteration: Int
+        var currentIteration = 0
+        init(succedingOnIteration: Int) {
+            self.succedingOnIteration = succedingOnIteration
+        }
+        
+        private var shoudReturnSuccess: Bool {
+            succedingOnIteration == currentIteration
+        }
+        
+        func run(_ code: String) -> String {
+           let output = shoudReturnSuccess
+            ? ""
+            : "failure"
+            
+            currentIteration += 1
+            return output
+        }
+    }
+    
+    struct DummyClient: Generator.Client {
+        func send(specs: String) async -> String {""}
+    }
+    
+    struct DummyRunner: Generator.Runner {
+        func run(_ code: String) -> String {""}
+    }
 }
