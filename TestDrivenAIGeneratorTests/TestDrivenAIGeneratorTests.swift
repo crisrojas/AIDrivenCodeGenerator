@@ -42,6 +42,11 @@ struct Generator {
             )
         }
         
+        if result.compliesSpecifications {
+            stateCallback(.success)
+            return result
+        }
+        
         var currentIteration = 1 {
             didSet {
                 iterationCallback(currentIteration)
@@ -79,9 +84,17 @@ struct TestDrivenAIGeneratorTests {
 
     @Test func test_generator_delivers_success_output() async throws {
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
-        let result = await sut.generateCode(from: anySpecs(), stateCallback: {_ in}, iterationCallback: {_ in})
+        var capturedStates = [Generator.State]()
+        var capturedIterations = [Int]()
+        let result = await sut.generateCode(
+            from: anySpecs(),
+            stateCallback: {capturedStates.append($0)},
+            iterationCallback: {capturedIterations.append($0)}
+        )
         
         #expect(result.compliesSpecifications)
+        #expect(capturedIterations == [1])
+        #expect(capturedStates == [.loading, .success])
     }
     
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
