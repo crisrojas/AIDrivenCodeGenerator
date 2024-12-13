@@ -17,20 +17,27 @@ struct Generator {
         let specifications: String
         let compliesSpecifications: Bool
     }
-    
-    enum State: Equatable {
-        case loading
-        case success(onIteration: Int)
-        case failure(onIteration: Int)
+   
+    struct State: Equatable {
+        let state: _State
+        let currentIteration: Int
         
-        var currentIteration: Int {
-            switch self {
-            case .loading: return 1
-            case .success(let i): return i
-            case .failure(let i): return i
-            }
+        enum _State: Equatable {
+            case loading
+            case failure
+            case success
+        }
+        
+        static let loading = State(state: .loading, currentIteration: 1)
+        static func success(onIteration: Int) -> Self {
+            .init(state: .success, currentIteration: onIteration)
+        }
+        
+        static func failure(onIteration: Int) -> Self {
+            .init(state: .success, currentIteration: onIteration)
         }
     }
+ 
     
     func generateCode(
         from specs: String,
