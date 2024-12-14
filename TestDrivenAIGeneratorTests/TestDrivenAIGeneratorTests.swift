@@ -18,23 +18,31 @@ struct Generator {
         let compliesSpecifications: Bool
     }
    
-    struct State: Equatable {
-        let state: _State
+    struct Status: Equatable {
+
         let currentIteration: Int
+        let output: String?
+        var state: State {
+            switch output {
+            case .none: return .loading
+            case .some(let output) where output.isEmpty: return .success
+            default: return .failure
+            }
+        }
         
-        enum _State: Equatable {
+        enum State: Equatable {
             case loading
             case failure
             case success
         }
         
-        static let loading = State(state: .loading, currentIteration: 1)
+        static let loading = Status(currentIteration: 1, output: nil)
         static func success(onIteration: Int) -> Self {
-            .init(state: .success, currentIteration: onIteration)
+            .init(currentIteration: onIteration, output: "")
         }
         
-        static func failure(onIteration: Int) -> Self {
-            .init(state: .success, currentIteration: onIteration)
+        static func failure(onIteration: Int, output: String) -> Self {
+            .init(currentIteration: onIteration, output: output)
         }
     }
  
@@ -42,9 +50,9 @@ struct Generator {
     func generateCode(
         from specs: String,
         iterationLimit: Int = 5,
-        stateCallback: (State) -> Void
+        statusCallback: (Status) -> Void
     ) async -> Result {
-        stateCallback(.loading)
+        statusCallback(.loading)
         var generated = await client.send(specs: specs)
         var output    = runner.run(generated)
         var result: Result {
@@ -56,14 +64,14 @@ struct Generator {
         }
         
         if result.compliesSpecifications {
-            stateCallback(.success(onIteration: 1))
+            statusCallback(.success(onIteration: 1))
             return result
         } else {
-            stateCallback(.failure(onIteration: 1))
+            statusCallback(.failure(onIteration: 1, output: output))
         }
         
-        var state = State.loading {
-            didSet { stateCallback(state) }
+        var state = Status.loading {
+            didSet { statusCallback(state) }
         }
         
         while state.currentIteration <= iterationLimit {
@@ -74,7 +82,7 @@ struct Generator {
             let currentIteration = state.currentIteration + 1
             state = result.compliesSpecifications
             ? .success(onIteration: currentIteration)
-            : .failure(onIteration: currentIteration)
+            : .failure(onIteration: currentIteration, output: output)
             
             if result.compliesSpecifications {
                 break
@@ -100,14 +108,14 @@ struct TestDrivenAIGeneratorTests {
 
     @Test func test_generator_delivers_success_output() async throws {
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
-        var capturedStates = [Generator.State]()
+        var capturedStatuses = [Generator.Status]()
         let result = await sut.generateCode(
             from: anySpecs(),
-            stateCallback: {capturedStates.append($0)}
+            statusCallback: {capturedStatuses.append($0)}
         )
         
         #expect(result.compliesSpecifications)
-        #expect(capturedStates == [.loading, .success(onIteration: 1)])
+        #expect(capturedStatuses == [.loading, .success(onIteration: 1)])
     }
     
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
@@ -115,20 +123,20 @@ struct TestDrivenAIGeneratorTests {
         let runner = StubRunner(succedingOnIteration: 3)
         
         let sut = Generator(client: DummyClient(), runner: runner)
-        var capturedStates = [Generator.State]()
+        var capturedStatuses = [Generator.Status]()
         
         let result = await sut.generateCode(
             from: anySpecs(),
             iterationLimit: 3,
-            stateCallback: { capturedStates.append($0) }
+            statusCallback: { capturedStatuses.append($0) }
         )
         
         #expect(result.compliesSpecifications)
         #expect(
-            capturedStates == [
+            capturedStatuses == [
                 .loading,
-                .failure(onIteration: 1),
-                .failure(onIteration: 2),
+                .failure(onIteration: 1, output: "failure"),
+                .failure(onIteration: 2, output: "failure"),
                 .success(onIteration: 3)
             ]
         )
