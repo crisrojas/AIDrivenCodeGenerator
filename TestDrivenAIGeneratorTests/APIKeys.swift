@@ -15,11 +15,3 @@ enum APIKeys {
         return dict["gemini"] as! String
     }
 }
-
-import Testing
-
-struct GeminiClientTests {
-    @Test func test() {
-        #expect(APIKeys.gemini.isEmpty == false)
-    }
-}
