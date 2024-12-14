@@ -22,6 +22,7 @@ struct Generator {
 
         let currentIteration: Int
         let output: String?
+        let generatedCode: String?
         var state: State {
             switch output {
             case .none: return .loading
@@ -36,13 +37,13 @@ struct Generator {
             case success
         }
         
-        static let loading = Status(currentIteration: 1, output: nil)
-        static func success(onIteration: Int) -> Self {
-            .init(currentIteration: onIteration, output: "")
+        static let loading = Status(currentIteration: 1, output: nil, generatedCode: nil)
+        static func success(onIteration: Int, generatedCode: String) -> Self {
+            .init(currentIteration: onIteration, output: "", generatedCode: generatedCode)
         }
         
-        static func failure(onIteration: Int, output: String) -> Self {
-            .init(currentIteration: onIteration, output: output)
+        static func failure(onIteration: Int, output: String, generatedCode: String) -> Self {
+            .init(currentIteration: onIteration, output: output, generatedCode: generatedCode)
         }
     }
  
@@ -64,10 +65,10 @@ struct Generator {
         }
         
         if result.compliesSpecifications {
-            statusCallback(.success(onIteration: 1))
+            statusCallback(.success(onIteration: 1, generatedCode: generated))
             return result
         } else {
-            statusCallback(.failure(onIteration: 1, output: output))
+            statusCallback(.failure(onIteration: 1, output: output, generatedCode: generated))
         }
         
         var state = Status.loading {
@@ -81,8 +82,8 @@ struct Generator {
             
             let currentIteration = state.currentIteration + 1
             state = result.compliesSpecifications
-            ? .success(onIteration: currentIteration)
-            : .failure(onIteration: currentIteration, output: output)
+            ? .success(onIteration: currentIteration, generatedCode: generated)
+            : .failure(onIteration: currentIteration, output: output, generatedCode: generated)
             
             if result.compliesSpecifications {
                 break
@@ -115,7 +116,15 @@ struct TestDrivenAIGeneratorTests {
         )
         
         #expect(result.compliesSpecifications)
-        #expect(capturedStatuses == [.loading, .success(onIteration: 1)])
+        #expect(
+            capturedStatuses == [
+                .loading,
+                .success(
+                    onIteration: 1,
+                    generatedCode: anyGenerated()
+                )
+            ]
+        )
     }
     
     @Test func test_generator_delivers_success_output_after_N_iterations() async throws {
@@ -135,21 +144,15 @@ struct TestDrivenAIGeneratorTests {
         #expect(
             capturedStatuses == [
                 .loading,
-                .failure(onIteration: 1, output: "failure"),
-                .failure(onIteration: 2, output: "failure"),
-                .success(onIteration: 3)
+                .failure(onIteration: 1, output: "failure", generatedCode: anyGenerated()),
+                .failure(onIteration: 2, output: "failure", generatedCode: anyGenerated()),
+                .success(onIteration: 3, generatedCode: anyGenerated())
             ]
         )
     }
     
-    func anySpecs() -> String {
-    """
-    func test_adder() {
-        let sut = Adder(1,2)
-        assert(sut.result == 3)
-    }
-    """
-    }
+    func anyGenerated() -> String {""}
+    func anySpecs() -> String {""}
     
 }
 
