@@ -9,19 +9,23 @@ import Foundation
 import Testing
 
 final class GeminiClient {
+    let client: HTTPClient
+    init(client c: HTTPClient) {
+        client = c
+    }
+    
     func send() async throws {
-        HTTPClient.shared.data(for: URL(string: "https://a-url.com")!)
+        client.data(for: URL(string: "https://a-url.com")!)
     }
 }
 
-class HTTPClient {
-    static var shared = HTTPClient()
-    func data(for url: URL) {}
+protocol HTTPClient {
+    func data(for url: URL)
 }
 
 class HTTPClientSpy: HTTPClient {
     var requestedURL: URL?
-    override func data(for url: URL) {
+    func data(for url: URL) {
         requestedURL = url
     }
 }
@@ -29,15 +33,13 @@ class HTTPClientSpy: HTTPClient {
 struct GeminiClientTests {
     @Test func does_not_request_data_on_initialization() throws {
         let client = HTTPClientSpy()
-        HTTPClient.shared = client
-        let _ = GeminiClient()
+        let _ = GeminiClient(client: client)
         #expect(client.requestedURL == nil)
     }
     
     @Test func requests_data_on_send() async throws {
         let client = HTTPClientSpy()
-        HTTPClient.shared = client
-        let sut = GeminiClient()
+        let sut = GeminiClient(client: client)
         _ = try await sut.send()
         #expect(client.requestedURL != nil)
     }
