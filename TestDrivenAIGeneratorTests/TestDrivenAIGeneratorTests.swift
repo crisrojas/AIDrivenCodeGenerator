@@ -51,9 +51,9 @@ struct Generator {
         from specs: String,
         iterationLimit: Int = 5,
         statusCallback: (Status) -> Void
-    ) async -> Result {
+    ) async throws -> Result {
         statusCallback(.loading)
-        var generated = await client.send(specs: specs)
+        var generated = try await client.send(specs: specs)
         var output    = runner.run(generated)
         var result: Result {
             Result(
@@ -76,7 +76,7 @@ struct Generator {
         
         while state.currentIteration <= iterationLimit {
            
-            generated = await client.send(specs: specs)
+            generated = try await client.send(specs: specs)
             output = runner.run(generated)
             
             let currentIteration = state.currentIteration + 1
@@ -95,7 +95,7 @@ struct Generator {
 
 extension Generator {
     protocol Client {
-        func send(specs: String) async -> String
+        func send(specs: String) async throws -> String
     }
     
     protocol Runner {
@@ -109,7 +109,7 @@ struct TestDrivenAIGeneratorTests {
     @Test func test_generator_delivers_success_output() async throws {
         let sut = Generator(client: DummyClient(), runner: DummyRunner())
         var capturedStatuses = [Generator.Status]()
-        let result = await sut.generateCode(
+        let result = try await sut.generateCode(
             from: anySpecs(),
             statusCallback: {capturedStatuses.append($0)}
         )
@@ -125,7 +125,7 @@ struct TestDrivenAIGeneratorTests {
         let sut = Generator(client: DummyClient(), runner: runner)
         var capturedStatuses = [Generator.Status]()
         
-        let result = await sut.generateCode(
+        let result = try await sut.generateCode(
             from: anySpecs(),
             iterationLimit: 3,
             statusCallback: { capturedStatuses.append($0) }
