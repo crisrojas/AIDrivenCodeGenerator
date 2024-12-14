@@ -1,5 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/macos,xcode
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,xcode
+# Secrets
+TestDrivenAIGeneratorTests/api_keys.plist
+
 ### macOS ###
 # General
 .DS_Store
